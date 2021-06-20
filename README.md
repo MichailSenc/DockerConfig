@@ -2,17 +2,11 @@
 
 Включает следующие технологии: 
 
-- Система управления задачами
+- Система управления задачами [Kanboard](https://kanboard.org/) 
 
-  [Kanboard](https://kanboard.org/) 
+- Система управления репозиториями [Gitblit](http://gitblit.github.io/gitblit/) 
 
-- Система управления репозиториями
-
-  [Gitblit](http://gitblit.github.io/gitblit/) 
-
-- Система непрерывной интеграции:  
-
-  [Jenkins](https://www.jenkins.io/)
+- Система непрерывной интеграции [Jenkins](https://www.jenkins.io/)
 
 ## Настройка для Debian
 
