@@ -1,0 +1,32 @@
+version: '2'
+services:
+  kanboard:
+    image: kanboard/kanboard:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./kanboard/kanboard_data:/var/www/app/data
+      - ./kanboard/kanboard_plugins:/var/www/app/plugins
+      - ./kanboard/kanboard_ssl:/etc/nginx/ssl
+  jenkins:
+    image: jenkins/jenkins:lts-jdk11 
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    user: root    
+    volumes:
+      - ./jenkins/home:/var/jenkins_home
+    restart: always
+  gitblit:
+    image: jacekkow/gitblit
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+      - "9418:9418"
+    environment:
+      JAVA_OPTS: "-Xmx512m"
+    volumes:
+      - ./gitblit/data:/opt/gitblit-data
+    links:
+      - jenkins
