@@ -19,6 +19,8 @@ services:
       - ./kanboard/kanboard_data:/var/www/app/data
       - ./kanboard/kanboard_plugins:/var/www/app/plugins
       - ./kanboard/kanboard_ssl:/etc/nginx/ssl
+    environment:
+      - PLUGIN_INSTALLER=true
 
   jenkins:
     build: 
