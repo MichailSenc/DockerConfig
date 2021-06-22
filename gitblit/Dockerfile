@@ -1,0 +1,1 @@
+FROM jacekkow/gitblit 

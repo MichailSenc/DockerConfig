@@ -7,7 +7,9 @@ networks:
 
 services:
   kanboard:
-    image: kanboard/kanboard:latest
+    build:
+      context: kanboard
+    container_name: kanboard
     ports:
       - "80:80"
       - "443:443"
@@ -33,7 +35,9 @@ services:
     restart: always
 
   gitblit:
-    image: jacekkow/gitblit
+    build: 
+      context: gitblit
+    container_name: gitblit
     ports:
       - "8080:8080"
       - "8443:8443"
