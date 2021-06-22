@@ -1,7 +1,7 @@
 version: '3.5'
 
 networks:
-  gitea:
+  gitblit:
     external: false
 
 
@@ -11,6 +11,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    networks: 
+      - gitblit
     volumes:
       - ./kanboard/kanboard_data:/var/www/app/data
       - ./kanboard/kanboard_plugins:/var/www/app/plugins
@@ -37,6 +39,8 @@ services:
       - "8443:8443"
       - "9418:9418"
       - "29418:29418"
+    networks:
+      - gitblit
     environment:
       JAVA_OPTS: "-Xmx512m"
     volumes:
