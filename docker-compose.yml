@@ -1,4 +1,10 @@
-version: '2'
+version: '3.5'
+
+networks:
+  gitea:
+    external: false
+
+
 services:
   kanboard:
     image: kanboard/kanboard:latest
@@ -9,8 +15,13 @@ services:
       - ./kanboard/kanboard_data:/var/www/app/data
       - ./kanboard/kanboard_plugins:/var/www/app/plugins
       - ./kanboard/kanboard_ssl:/etc/nginx/ssl
+
   jenkins:
-    image: jenkins/jenkins:lts-jdk11 
+    build: 
+      context: jenkins
+    container_name: jenkins  
+    networks: 
+      - gitblit
     ports:
       - "8081:8080"
       - "50000:50000"
@@ -18,12 +29,14 @@ services:
     volumes:
       - ./jenkins/home:/var/jenkins_home
     restart: always
+
   gitblit:
     image: jacekkow/gitblit
     ports:
       - "8080:8080"
       - "8443:8443"
       - "9418:9418"
+      - "29418:29418"
     environment:
       JAVA_OPTS: "-Xmx512m"
     volumes:

@@ -1,0 +1,2 @@
+kanboard:1.5.11
+gitblit:1.2
