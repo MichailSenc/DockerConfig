@@ -21,6 +21,7 @@ services:
       - ./kanboard/kanboard_ssl:/etc/nginx/ssl
     environment:
       - PLUGIN_INSTALLER=true
+      - API_AUTHENTICATION_HEADER=X-API-Auth
 
   jenkins:
     build: 
