@@ -1,0 +1,269 @@
+------------------------------------------------------ДОКУМЕНТАЦИЯ------------------------------------------------------
+-------------------------------------Развёртывание системы и установка зависимостей-------------------------------------
+A) 
+    1) С официального сайта скачать и установить 
+        - Docker: https://docs.docker.com/engine/install/debian/
+        - Docker-Compose: https://docs.docker.com/compose/install/
+
+    2) Скачать репозиторий с проектом:
+        https://github.com/MichailSenc/DockerConfig.git
+
+    3) Чтобы скрипт для бекапа работал корректно нужно выполнить следующие шаги:
+        - Установить nodejs командой "sudo apt install nodejs" 
+        - После установки nodejs поставить npm зависимости - в каталоге "backup" выполнить "npm install"
+        - Добавить файлам "index.js" и "start.sh" права на испонение "chmod +x index.js" и "chmod +x start.sh"  
+
+
+    4) Далее нужно перейти в каталог репозитория "DockerConfig" и запустить команду "docker-compose up". Эта команда 
+    выполнит конфигурацию docker-compose.yaml: для каждого проекта (kanboard, gitblit, jenkins) в зависимости от 
+    контекста выполнит поиск Dockerfile, соберёт образ и запустит эти приложения. 
+
+    Каждое приложение имеет свой порт и расположено по следующим адресам:
+        - Kanboard: http://localhost:80
+        - Gitblit: http://localhost:8080
+        - Jenkins: http://localhost:8081
+
+---------------------------------------------------Настройка системы--------------------------------------------------- 
+
+B) 
+    1) Jenkins
+    Для начала ищем в логах вывода "docker-compose up" из раздела А4) строчку вида: 
+
+    jenkins     | *************************************************************
+    jenkins     | *************************************************************
+    jenkins     | *************************************************************
+    jenkins     |
+    jenkins     | Jenkins initial setup is required. An admin user has been created and a password generated.
+    jenkins     | Please use the following password to proceed to installation:
+    jenkins     |
+    jenkins     | 0c7746238dc34e909ad779e27384dc7a    <-----------------НАМ НУЖЕН ЭТОТ КЛЮЧ !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    jenkins     |
+    jenkins     | This may also be found at: /var/jenkins_home/secrets/initialAdminPassword
+    jenkins     |
+    jenkins     | *************************************************************
+    jenkins     | *************************************************************
+    jenkins     | *************************************************************
+
+    Копируем этот ключ "0c7746238dc34e909ad779e27384dc7a", переходим на страницу Jenkins-a и у нас появится стартовое 
+    окно с разброкировкой. Вводим ключ в поле дял ввода, нажимаем "Contine" 
+
+    Далее нам нужно будет установить плагины. Выбираем пункт "Install suggested plugins". Этот пукт ставить все
+    необходимые для нас плагины, за исключением плагина для Kanboard и Gitblit - они ставятся на этапе сборки
+    приложения в Dockerfile.
+
+    После установки плагинов нужно будет создат Root-пользователя. Пример ввода:
+        Имя пользователя: admin
+        Пароль:	admin
+        Повторите пароль: admin
+        Ф.И.О.:	Сенчаков Михаил Сергеевич
+        Адрес электронной почты: misha.senc@mail.ru	
+    
+    Нажимаем "Save and Contine"
+
+    Ставим Url. Пример: 
+        Jenkins URL: http://192.168.0.46:8081/, где 192.168.0.46 - наш ip 
+
+    Нажимаем "Save and Finsish" и "Start and using Jenkins"
+
+    Ура! Jenkins запущен.
+
+    Далее нужно настроить Gitblit сервер в jenkins
+    Переходим: 
+        "Настроить Jenkins" -> "Конфигурация системы"
+    Ищем пункт: 
+        "GitBlit Servers" -> "Добавить"
+    Вводим конфигурацию (Пример): 
+        API endpoint: http://192.168.0.46:8080/, где 8080 - порт, обслуживающий GitBlit
+        Name: TestServerName
+
+    На данном этапе настройка Jenkins закончена.
+    
+    2) Gitblit 
+    Переходим на сайт Gitblit: http://192.168.0.46:8080/
+
+    Авторизируемся через учётную запись администратора
+        - Логин: admin
+        - Пароль: admin
+
+    Создаём новый репозиторий и переходим в него. 
+    Делее нам нужно будет для репозитория подключить использование web-hook для jenkins 
+    Идем в "edit" -> "receive" и ищем "post-receive scripts" добавляем "jenkins" и сохраняем.
+
+    Чтобы интегрировать gitblit в jenkins переходим в корень проекта, и отредактируем файл 
+        ./gitblit/data/groovy/jenkins.groovy 
+
+    Заменим строчку: 
+        def jenkinsUrl = gitblit.getString('groovy.jenkinsServer', 'http://yourserver/jenkins')
+    На: 
+        def jenkinsUrl = gitblit.getString('groovy.jenkinsServer', 'http://192.168.0.46:8081')
+
+    Настройка Gitblit закончена!
+
+    3) Kanbord 
+    На текущий момент интеграция kanboard не выполнена и далее рассмартиваться не будет. Можно войти учетную запись 
+    суперпользователя 
+        Логин:  admin
+        Пароль: admin
+
+
+---------------------------------------------------Создание проекта--------------------------------------------------- 
+
+В) 
+    Переходим на страницу Jenkins вкладка "Создать Item": http://192.168.0.46:8081/view/all/newJob
+    Вводим название проекта и выбираем тип "Pipeline"
+
+    Ставим следующие настройки: 
+        - GitHub project
+            - Project url: http://admin@192.168.0.46:8080
+        - Опрашивать SCM об изменениях
+        - Вкладка Pipeline -> Definition и выбираем "Pipeline script from SCM"
+            - SCM: Git
+            - Repository URL: http://admin@192.168.0.46:8080/r/second.git
+    
+    Сохраняем настройки.
+
+    У нас появилась служба, запускающаяся при срабатывании web-hook на стороне Gitblit при добавлении коммита в 
+    репозиторий. При срабатывании триггера Jenkins обновляет репозиторий и ищет внутри него Jenkinsfile - файл с
+    конфигурацией для построения билда. 
+
+    Простой пример Jenkinsfile: 
+
+                pipeline {
+                agent { docker 'node:lts' } # добавляем в окружение образ node:lts 
+
+                stages {
+                    stage('Build') {
+                        steps {
+                            echo '-------------------BUILD_START-------------------'
+                            # Тут может быть код для билда приложения 
+                            echo '--------------------BUILD_END--------------------'
+                        }
+                    }
+                    stage('Test') {
+                        steps {
+                            echo '-------------------TEST_START-------------------'
+                            # Тут может быть код для тестирования приложения 
+                            echo '--------------------TEST_END--------------------'
+                        }
+                    }
+                    stage('Deploy') {
+                        steps {
+                            echo '-------------------DEPLOY_START-------------------'
+                            # Тут может быть код для деплоя приложения 
+                            sh 'npm --version'
+                            sh 'npm install'
+                            sh 'npm test'
+                            echo '--------------------DEPLOY_END--------------------'
+                        }
+                    }
+                }
+            }
+    
+    Сам по себе Jenkinsfile может быть любым. Всё зависит от нужд разработчика.
+
+    Всё, теперь у нас при коммите будет запускаться служба Jenkins-a и выполнит код в Jenkinsfile.
+
+---------------------------------------------------------Бекап--------------------------------------------------------- 
+
+D)
+    Для бекапа был разнаботан скрипт на nodejs. Перед его запуском нужно установить зависимости (пункт A3)
+    Местоположение: "build/index.js"
+    Запуск: "sudo ./index.js",  либо "./start.sh"
+
+    Примечание: Для работы скрипта нужно иметь sudo. 
+
+    Документация по скрипту: 
+
+    После запуска скрипта появится интерактивный выбор действия:
+        - Сделать сохранение
+        - Загрузить сохранение
+        - Отмена
+        
+    СДЕЛАТЬ СОХРАНЕНИЕ: архивирует созданные данные в каталог, название которого имеет формат: "dd-MM-yyyy-HH-mm-ss" и 
+    сохраняет это в каталог "saves"
+
+    ЗАГРУЗИТЬ СОХРАНЕНИЕ: если есть доступные сохранения в каталоге "saves", выводит их пользователю для 
+    выбора. После выбора разархивирует нужный каталог и заменит все данные для каждой системы
+
+    ОТМЕНА: выход из скрипта
+
+    Вывод спарвки: --help, -h
+
+
+-------------------------------------------------Конфигурационные файлы-------------------------------------------------
+
+1) docker-compose.yaml
+
+    version: '3.5'
+
+    networks:  # Определить сеть 
+    gitblit:
+        external: false
+
+
+    services:
+        kanboard:
+            build:          # Создать образ в контексте kanboard
+                context: kanboard
+            container_name: kanboard
+            ports:          # Пробросить порты 80 и 443 
+                - "80:80"
+                - "443:443"
+            networks:       # Подключится к сети 
+                - gitblit
+            volumes:        # Присоединить папки для хранения данных 
+                - ./kanboard/kanboard_data:/var/www/app/data
+                - ./kanboard/kanboard_plugins:/var/www/app/plugins
+                - ./kanboard/kanboard_ssl:/etc/nginx/ssl
+            environment:    # Переменные окружения
+                - PLUGIN_INSTALLER=true
+                - API_AUTHENTICATION_HEADER=X-API-Auth
+
+        jenkins:
+            build:          # Создать образ в контексте jenkins
+                context: jenkins
+            container_name: jenkins
+            networks:       # Подключится к сети 
+                - gitblit
+            ports:          # Пробросить порты 8081 и 5000 
+                - "8081:8080"
+                - "50000:50000"
+            user: root      # Запустить с правами root
+            volumes:        # Присоединить папки для хранения данных 
+                - ./jenkins/home:/var/jenkins_home
+            restart: always
+
+        gitblit:
+            build:      # Создать образ в контексте gitblit
+                context: gitblit
+            container_name: gitblit
+            ports:      # Пробросить порты 8080, 8443, 9418, 29418
+                - "8080:8080"
+                - "8443:8443"
+                - "9418:9418"
+                - "29418:29418"
+            networks:       # Подключится к сети 
+                - gitblit
+            environment:    # Переменные окружения
+                JAVA_OPTS: "-Xmx512m"
+            volumes:        # Присоединить папки для хранения данных 
+                - ./gitblit/data:/opt/gitblit-data
+            links:
+                - jenkins
+
+Докерфайлы имеют максимальльно простую конфигурацию, так как вся настройка происходит в файле docker-compose.yaml
+
+    1) Dockerfile for kanboard
+        FROM kanboard/kanboard:latest   # получить последнюю версию сборки приложения 
+
+    1) Dockerfile for gitblit
+        FROM jacekkow/gitblit           # получить последнюю версию сборки приложения 
+
+    1) Dockerfile for jenkins
+        FROM jenkins/jenkins:lts-jdk11  # получить последнюю версию сборки приложения 
+
+        # копировать текстовый файл, хранящий в себе названия и версии плагинов для установки
+        COPY plugins.txt /usr/share/jenkins/ref/plugins.txt 
+
+        # установить все плагины из plugins.txt
+        RUN /usr/local/bin/install-plugins.sh < /usr/share/jenkins/ref/plugins.txt
